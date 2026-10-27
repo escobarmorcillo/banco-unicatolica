@@ -1,0 +1,5 @@
+node_modules/
+db/
+.env
+supabase-ca.crt
+.DS_Store

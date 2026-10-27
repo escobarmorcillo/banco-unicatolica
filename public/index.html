@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NovaBank</title>
+    <link rel="stylesheet" href="/styles/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-box">
+          <div class="brand-mark">N</div>
+          <div>
+            <h1>NovaBank</h1>
+          </div>
+        </div>
+
+        <nav class="nav-menu" aria-label="Módulos principales">
+          <button class="nav-item active" data-view="clients">Clientes</button>
+          <button class="nav-item" data-view="accounts">Cuentas</button>
+          <button class="nav-item" data-view="transactions">Transacciones</button>
+        </nav>
+        <div class="sidebar-footer">Cerrar sesión</div>
+      </aside>
+
+      <main class="content">
+        <section class="view active" id="clients">
+          <div class="panel-header">
+            <div>
+              <h2>Clientes</h2>
+              <p class="page-description" data-page-description="clients">Los campos con * son obligatorios.</p>
+            </div>
+          </div>
+
+          <div class="subnav">
+            <button class="subnav-btn active" data-submodule="register" data-group="clients">Registrar</button>
+            <button class="subnav-btn" data-submodule="list" data-group="clients">Consultar y listar</button>
+            <button class="subnav-btn" data-submodule="update" data-group="clients">Actualizar</button>
+            <button class="subnav-btn" data-submodule="inactive" data-group="clients">Inactivar</button>
+          </div>
+
+          <div class="tab-panel active" data-submodule-panel="register" data-group="clients" data-description="Los campos con * son obligatorios.">
+            <div class="panel">
+              <form id="customer-form" class="form-grid" novalidate>
+                <label>
+                  Tipo de documento <span class="required">*</span>
+                  <select name="tipo_documento" required>
+                    <option value="Cedula">Cédula</option>
+                    <option value="Pasaporte">Pasaporte</option>
+                    <option value="Tarjeta de identidad">Tarjeta de identidad</option>
+                  </select>
+                </label>
+                <label>
+                  Documento de identidad <span class="required">*</span>
+                  <input name="documento" type="text" placeholder="Máximo 10 números" inputmode="numeric" maxlength="10" autocomplete="off" data-customer-digits aria-describedby="customer-document-error" required />
+                  <small class="field-error" id="customer-document-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Nombres <span class="required">*</span>
+                  <input name="nombres" type="text" placeholder="Escribe los nombres" autocomplete="given-name" data-customer-letters aria-describedby="customer-first-name-error" required />
+                  <small class="field-error" id="customer-first-name-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Apellidos <span class="required">*</span>
+                  <input name="apellidos" type="text" placeholder="Escribe los apellidos" autocomplete="family-name" data-customer-letters aria-describedby="customer-last-name-error" required />
+                  <small class="field-error" id="customer-last-name-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Fecha de nacimiento <span class="required">*</span>
+                  <input name="fecha_nacimiento" type="date" aria-describedby="customer-birth-date-error" required />
+                  <small class="field-error" id="customer-birth-date-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Teléfono <span class="required">*</span>
+                  <input name="telefono" type="tel" placeholder="10 números" inputmode="numeric" maxlength="10" autocomplete="tel" data-customer-digits aria-describedby="customer-phone-error" required />
+                  <small class="field-error" id="customer-phone-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Correo electrónico <span class="required">*</span>
+                  <input name="correo" type="email" placeholder="correo@ejemplo.com" required />
+                </label>
+                <label class="full-width">
+                  Dirección <span class="required">*</span>
+                  <input name="direccion" type="text" placeholder="Dirección" required />
+                </label>
+                <p class="info-text full-width">El documento debe ser único y el cliente mayor de 18 años.</p>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="customer-cancel-btn">Cancelar</button>
+                  <button type="submit" class="primary">Guardar cliente</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="list" data-group="clients" data-description="Busca por documento o revisa el listado completo.">
+            <div class="panel search-panel">
+              <div class="search-row">
+                <input id="customer-search-input" type="text" placeholder="Buscar documento (máximo 10 números)" inputmode="numeric" maxlength="10" data-customer-digits />
+                <button type="button" class="primary" id="customer-search-btn">Buscar</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Documento</th>
+                      <th>Nombres</th>
+                      <th>Apellidos</th>
+                      <th>Teléfono</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="customer-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="update" data-group="clients" data-description="Modifica los datos editables de un cliente.">
+            <div class="panel">
+              <form class="form-grid compact-form" id="customer-update-form">
+                <label>
+                  Cliente a actualizar
+                  <input id="customer-update-client" type="text" placeholder="Documento (máximo 10 números)" inputmode="numeric" maxlength="10" data-customer-digits aria-label="Documento del cliente que desea buscar" />
+                </label>
+                <div class="actions full-width">
+                  <button type="button" class="primary" id="customer-load-update-btn">Buscar</button>
+                </div>
+                <label>
+                  Documento
+                  <input id="customer-update-documento" name="documento" type="text" inputmode="numeric" maxlength="10" data-customer-digits aria-describedby="customer-update-documento-error" />
+                  <small class="field-error" id="customer-update-documento-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Teléfono
+                  <input id="customer-update-telefono" name="telefono" type="tel" inputmode="numeric" maxlength="10" data-customer-digits aria-describedby="customer-update-telefono-error" />
+                  <small class="field-error" id="customer-update-telefono-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Nombres
+                  <input id="customer-update-nombres" name="nombres" type="text" data-customer-letters aria-describedby="customer-update-nombres-error" />
+                  <small class="field-error" id="customer-update-nombres-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Apellidos
+                  <input id="customer-update-apellidos" name="apellidos" type="text" data-customer-letters aria-describedby="customer-update-apellidos-error" />
+                  <small class="field-error" id="customer-update-apellidos-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Correo
+                  <input id="customer-update-correo" name="correo" type="email" aria-describedby="customer-update-correo-error" />
+                  <small class="field-error" id="customer-update-correo-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Dirección
+                  <input id="customer-update-direccion" name="direccion" type="text" aria-describedby="customer-update-direccion-error" />
+                  <small class="field-error" id="customer-update-direccion-error" role="alert" hidden></small>
+                </label>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="customer-update-cancel-btn">Cancelar</button>
+                  <button type="button" class="primary" id="customer-update-save-btn">Guardar cambios</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="inactive" data-group="clients" data-description="Solo se puede inactivar si las reglas de integridad lo permiten.">
+            <div class="panel">
+              <form class="form-grid compact-form" id="customer-inactive-form">
+                <label>
+                  Cliente a inactivar
+                  <input id="customer-inactive-doc" type="text" placeholder="Buscar documento" inputmode="numeric" maxlength="10" data-customer-digits />
+                </label>
+                <div class="actions full-width">
+                  <button type="button" class="primary" id="customer-inactive-search-btn">Buscar</button>
+                </div>
+                <label>
+                  Documento
+                  <input id="customer-inactive-documento" type="text" value="" readonly />
+                </label>
+                <label>
+                  Nombres
+                  <input id="customer-inactive-nombres" type="text" value="" readonly />
+                </label>
+                <label>
+                  Cuentas activas
+                  <input id="customer-inactive-accounts" type="text" value="" readonly />
+                </label>
+                <p class="info-text full-width">No se puede inactivar un cliente con cuentas activas asociadas.</p>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="customer-inactive-cancel-btn">Cancelar</button>
+                  <button type="button" class="danger" id="customer-inactive-confirm-btn">Inactivar cliente</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="accounts">
+          <div class="panel-header">
+            <div>
+              <h2>Cuentas</h2>
+              <p class="page-description" data-page-description="accounts">La cuenta debe estar vinculada a un cliente existente.</p>
+            </div>
+          </div>
+
+          <div class="subnav">
+            <button class="subnav-btn active" data-submodule="register" data-group="accounts">Crear</button>
+            <button class="subnav-btn" data-submodule="list" data-group="accounts">Consultar</button>
+            <button class="subnav-btn" data-submodule="update" data-group="accounts">Actualizar</button>
+            <button class="subnav-btn" data-submodule="inactive" data-group="accounts">Inactivar</button>
+          </div>
+
+          <div class="tab-panel active" data-submodule-panel="register" data-group="accounts" data-description="La cuenta debe estar vinculada a un cliente existente.">
+            <div class="panel">
+              <form id="account-form" class="form-grid">
+                <label class="full-width">
+                  Cliente titular <span class="required">*</span>
+                  <span class="search-control">
+                    <input id="account-customer-search" type="text" list="customer-options" placeholder="Documento del cliente" autocomplete="off" inputmode="numeric" maxlength="10" data-customer-digits />
+                    <button type="button" class="primary" id="account-customer-search-btn">Buscar</button>
+                  </span>
+                  <input type="hidden" id="account-customer-id" name="cliente_id" required />
+                  <span class="selected-record" id="account-customer-selected"></span>
+                </label>
+                <label>
+                  Tipo de cuenta <span class="required">*</span>
+                  <select name="tipo_cuenta" required>
+                    <option value="Ahorros">Ahorros</option>
+                    <option value="Corriente">Corriente</option>
+                    <option value="Nomina">Nómina</option>
+                  </select>
+                </label>
+                <label>
+                  Número de cuenta <span class="required">*</span>
+                  <input name="numero_cuenta" type="text" inputmode="numeric" placeholder="Solo números" data-customer-digits aria-describedby="account-number-error" required />
+                  <small class="field-error" id="account-number-error" role="alert" hidden></small>
+                </label>
+                <label>
+                  Saldo inicial <span class="required">*</span>
+                  <input name="saldo_inicial" type="text" inputmode="decimal" placeholder="Ej: 500 o 500.50" data-money min="0" required aria-describedby="account-opening-balance-error" />
+                  <small class="field-error" id="account-opening-balance-error" role="alert" hidden></small>
+                </label>
+                <p class="info-text full-width">El número de cuenta es único y el saldo inicial no puede ser negativo.</p>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="account-cancel-btn">Cancelar</button>
+                  <button type="submit" class="primary">Crear cuenta</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="list" data-group="accounts" data-description="Busca por número de cuenta o por cliente.">
+            <div class="panel search-panel">
+              <div class="search-row">
+                <input id="account-search-input" type="text" placeholder="Buscar cuenta" />
+                <button type="button" class="primary" id="account-search-btn">Buscar</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Número</th>
+                      <th>Tipo</th>
+                      <th>Cliente</th>
+                      <th>Saldo</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="account-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="update" data-group="accounts" data-description="Edita datos no críticos de la cuenta.">
+            <div class="panel">
+              <form class="form-grid compact-form" id="account-update-form">
+                <label>
+                  Cuenta a actualizar
+                  <input id="account-update-number" type="text" inputmode="numeric" placeholder="Buscar número" data-customer-digits />
+                </label>
+                <div class="actions full-width">
+                  <button type="button" class="primary" id="account-load-update-btn">Buscar</button>
+                </div>
+                <label>
+                  Número de cuenta
+                  <input id="account-update-cuenta" type="text" readonly />
+                </label>
+                <label>
+                  Saldo actual
+                  <input id="account-update-saldo" type="text" readonly />
+                </label>
+                <label>
+                  Estado
+                  <select id="account-update-estado">
+                    <option value="activo">activo</option>
+                    <option value="inactivo">inactivo</option>
+                  </select>
+                </label>
+                <label>
+                  Tipo de cuenta
+                  <select id="account-update-tipo">
+                    <option value="Ahorros">Ahorros</option>
+                    <option value="Corriente">Corriente</option>
+                    <option value="Nomina">Nómina</option>
+                  </select>
+                </label>
+                <p class="info-text full-width">El saldo no se modifica aquí; solo cambia con transacciones.</p>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="account-update-cancel-btn">Cancelar</button>
+                  <button type="button" class="primary" id="account-update-save-btn">Guardar cambios</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="inactive" data-group="accounts" data-description="La historia de transacciones se conserva.">
+            <div class="panel">
+              <form class="form-grid compact-form" id="account-inactive-form">
+                <label>
+                  Cuenta a inactivar
+                  <input id="account-inactive-number" type="text" inputmode="numeric" placeholder="Buscar número" data-customer-digits />
+                </label>
+                <div class="actions full-width">
+                  <button type="button" class="primary" id="account-inactive-search-btn">Buscar</button>
+                </div>
+                <label>
+                  Número
+                  <input id="account-inactive-num" type="text" value="" readonly />
+                </label>
+                <label>
+                  Cliente
+                  <input id="account-inactive-cliente" type="text" value="" readonly />
+                </label>
+                <label>
+                  Saldo
+                  <input id="account-inactive-saldo" type="text" value="" readonly />
+                </label>
+                <p class="info-text full-width">Solo se puede inactivar una cuenta con saldo en cero.</p>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="account-inactive-cancel-btn">Cancelar</button>
+                  <button type="button" class="danger" id="account-inactive-confirm-btn">Inactivar cuenta</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="transactions">
+          <div class="panel-header">
+            <div>
+              <h2>Transacciones</h2>
+              <p class="page-description" data-page-description="transactions">Suma un monto al saldo de una cuenta activa.</p>
+            </div>
+          </div>
+
+          <div class="subnav">
+            <button class="subnav-btn active" data-submodule="deposit" data-group="transactions">Depósito</button>
+            <button class="subnav-btn" data-submodule="withdraw" data-group="transactions">Retiro</button>
+            <button class="subnav-btn" data-submodule="history" data-group="transactions">Historial</button>
+            <button class="subnav-btn" data-submodule="validations" data-group="transactions">Validaciones</button>
+          </div>
+
+          <div class="tab-panel active" data-submodule-panel="deposit" data-group="transactions" data-description="Suma un monto al saldo de una cuenta activa.">
+            <div class="panel">
+              <form id="transaction-form" class="form-grid">
+                <label class="full-width">
+                  Cuenta <span class="required">*</span>
+                  <span class="search-control">
+                    <input id="transaction-account-search" type="text" list="account-options" placeholder="Número de cuenta (solo números)" autocomplete="off" inputmode="numeric" data-customer-digits />
+                    <button type="button" class="primary" data-account-lookup="deposit">Buscar</button>
+                  </span>
+                  <input type="hidden" id="transaction-account-id" name="account_id" required />
+                </label>
+                <label>
+                  Monto <span class="required">*</span>
+                  <input name="amount" type="text" inputmode="decimal" placeholder="Mayor que 0, máximo 2 decimales" data-money min="0.01" required aria-describedby="deposit-amount-error" />
+                  <small class="field-error" id="deposit-amount-error" role="alert" hidden></small>
+                </label>
+                <label class="full-width">
+                  Descripción
+                  <input name="description" type="text" placeholder="Descripción de la operación" />
+                </label>
+                <div class="balance-summary full-width">
+                  <div><span>Saldo actual</span><strong id="deposit-current-balance">—</strong></div>
+                  <div><span>Saldo final</span><strong id="deposit-final-balance">—</strong></div>
+                </div>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="transaction-deposit-cancel-btn">Cancelar</button>
+                  <button type="submit" data-transaction="deposit" class="primary">Registrar depósito</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="withdraw" data-group="transactions" data-description="Resta un monto solo si hay saldo suficiente.">
+            <div class="panel">
+              <form id="transaction-withdraw-form" class="form-grid">
+                <label class="full-width">
+                  Cuenta <span class="required">*</span>
+                  <span class="search-control">
+                    <input id="transaction-account-search-withdraw" type="text" list="account-options" placeholder="Número de cuenta (solo números)" autocomplete="off" inputmode="numeric" data-customer-digits />
+                    <button type="button" class="primary" data-account-lookup="withdraw">Buscar</button>
+                  </span>
+                  <input type="hidden" id="transaction-account-id-withdraw" name="account_id" required />
+                </label>
+                <label>
+                  Monto <span class="required">*</span>
+                  <input name="amount" type="text" inputmode="decimal" placeholder="Mayor que 0, máximo 2 decimales" data-money min="0.01" required aria-describedby="withdraw-amount-error" />
+                  <small class="field-error" id="withdraw-amount-error" role="alert" hidden></small>
+                </label>
+                <label class="full-width">
+                  Descripción
+                  <input name="description" type="text" placeholder="Descripción de la operación" />
+                </label>
+                <div class="balance-summary full-width">
+                  <div><span>Saldo disponible</span><strong id="withdraw-current-balance">—</strong></div>
+                  <div><span>Saldo final</span><strong id="withdraw-final-balance">—</strong></div>
+                </div>
+                <div class="actions full-width">
+                  <button type="button" class="secondary" id="transaction-withdraw-cancel-btn">Cancelar</button>
+                  <button type="submit" data-transaction="withdraw" class="primary">Registrar retiro</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="history" data-group="transactions" data-description="Depósitos y retiros de una cuenta.">
+            <div class="panel search-panel">
+              <div class="search-row">
+                <input id="transaction-search-input" type="text" list="account-options" placeholder="Cuenta" autocomplete="off" />
+                <button type="button" class="primary" id="transaction-search-btn">Buscar</button>
+              </div>
+              <p class="history-balance">Saldo actual <strong id="history-current-balance">—</strong></p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fecha y hora</th>
+                      <th>Tipo</th>
+                      <th>Monto</th>
+                      <th>Saldo resultante</th>
+                    </tr>
+                  </thead>
+                  <tbody id="transaction-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="validations" data-group="transactions" data-description="Mensajes que ve el usuario cuando el sistema protege el saldo.">
+            <div class="panel">
+              <ul class="validation-list">
+                <li>Retiro rechazado: el monto supera el saldo disponible.</li>
+                <li>Cuenta no creada: el saldo inicial no puede ser negativo.</li>
+                <li>Depósito registrado: el saldo ya refleja el cambio.</li>
+                <li>Operación bloqueada: la cuenta está inactiva.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="customer-options"></datalist>
+    <datalist id="account-options"></datalist>
+    <div id="message-box" class="message-box hidden" aria-live="polite"></div>
+
+    <script src="/scripts/app.js"></script>
+  </body>
+</html>
