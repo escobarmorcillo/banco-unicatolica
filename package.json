@@ -16,7 +16,7 @@
     "pg": "^8.23.1"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16"

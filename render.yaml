@@ -3,10 +3,23 @@ services:
     name: novabank
     runtime: node
     plan: free
-    buildCommand: npm ci
+    # Solo dependencias de producción: las de pruebas (PGlite) no se instalan en Render.
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # El certificado se sube en Render como Secret File llamado supabase-ca.crt.
+      - key: SUPABASE_DB_CA_CERT
+        value: /etc/secrets/supabase-ca.crt
+      # sync: false → Render pide el valor en el panel; nunca se guarda en el repositorio.
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
