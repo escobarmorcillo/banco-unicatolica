@@ -303,6 +303,43 @@ test('reactivates an inactive account only when its customer is active', async (
   });
 });
 
+test('returns JSON 404 for unknown API routes and 400 for malformed JSON', async () => {
+  await withApp(async (baseUrl) => {
+    const missing = await api(baseUrl, '/api/no-existe');
+    assert.equal(missing.status, 404);
+    assert.match(missing.data.error, /no encontrado/i);
+
+    const response = await fetch(`${baseUrl}/api/customers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{ esto no es json',
+    });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /JSON/);
+  });
+});
+
+test('hides internal database errors from the client', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'novabank-'));
+  const database = createDb(path.join(dir, 'novabank.db'));
+  const app = createApp(database);
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once('listening', resolve));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await new Promise((resolve) => database.close(resolve));
+    const response = await api(baseUrl, '/api/customers');
+    assert.equal(response.status, 500);
+    assert.equal(response.data.error, 'Ocurrió un error interno. Intenta nuevamente.');
+    assert.doesNotMatch(response.data.error, /SQLITE/);
+  } finally {
+    console.error = originalError;
+    await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
+  }
+});
+
 test('persists customer and account data across app restarts using same SQLite database', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'novabank-persist-'));
   const dbPath = path.join(dir, 'novabank.db');

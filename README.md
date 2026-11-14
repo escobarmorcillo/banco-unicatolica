@@ -83,7 +83,12 @@ Las tablas guardan los saldos y montos en centavos de COP, conservan el historia
 
 ## Estructura
 
-- `server.js`: API REST y acceso a SQLite/Supabase.
+- `server.js`: punto de entrada; carga `.env` y arranca el servidor.
+- `src/app.js`: configuración de Express, rutas, archivos estáticos y manejo de errores.
+- `src/routes/`: rutas de la API (`customers.js`, `accounts.js`, `transactions.js`).
+- `src/database/`: conexión a SQLite (`sqlite.js`) o Supabase (`postgres.js`) y utilidades de consulta (`index.js`).
+- `src/validation.js`: reglas de validación de clientes, cuentas y montos.
+- `src/errors.js`: errores de negocio, respuestas 404 de la API y ocultamiento de errores internos.
 - `public/index.html`: interfaz.
 - `public/styles/styles.css`: estilos.
 - `public/scripts/app.js`: navegación, formularios y consultas.
