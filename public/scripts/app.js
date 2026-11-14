@@ -27,6 +27,12 @@ function showMessage(message, type = 'success') {
   }, 3500);
 }
 
+// Solo el administrador ve los botones para modificar clientes y cuentas.
+// Es solo visual: el servidor también bloquea estas acciones para otros roles.
+function canManage() {
+  return Boolean(window.NovaAuth && window.NovaAuth.user && window.NovaAuth.user.rol === 'administrador');
+}
+
 function formatCurrency(value) {
   const cents = Number(value || 0);
   return new Intl.NumberFormat('es-CO', {
@@ -53,12 +59,12 @@ function renderCustomerTable(rows = []) {
       <td>${escapeHtml(row.telefono)}</td>
       <td><span class="badge ${row.estado === 'activo' ? 'active' : 'inactive'}">${escapeHtml(row.estado)}</span></td>
       <td>
-        <div class="row-actions">
+        ${canManage() ? `<div class="row-actions">
           <button type="button" class="action-link" data-customer-edit="${escapeHtml(row.id)}">Actualizar</button>
           ${row.estado === 'activo'
             ? `<button type="button" class="action-link" data-customer-inactivate="${escapeHtml(row.id)}">Inactivar</button>`
             : `<button type="button" class="action-link" data-customer-activate="${escapeHtml(row.id)}">Activar</button>`}
-        </div>
+        </div>` : '<span class="muted-text">Solo consulta</span>'}
       </td>
     </tr>
   `).join('');
@@ -79,14 +85,14 @@ function renderAccountTable(rows = []) {
       <td>${escapeHtml(row.tipo_cuenta)}</td>
       <td>${escapeHtml(row.cliente || `${row.nombres} ${row.apellidos}`)}</td>
       <td>${formatCurrency(row.saldo)}</td>
-      <td><span class="badge ${row.estado === 'activo' ? 'active' : 'inactive'}">${row.estado}</span></td>
+      <td><span class="badge ${row.estado === 'activo' ? 'active' : 'inactive'}">${escapeHtml(row.estado)}</span></td>
       <td>
-        <div class="row-actions">
+        ${canManage() ? `<div class="row-actions">
           <button type="button" class="action-link" data-account-edit="${escapeHtml(row.id)}">Actualizar</button>
           ${row.estado === 'activo'
             ? `<button type="button" class="action-link" data-account-inactivate="${escapeHtml(row.id)}">Inactivar</button>`
             : `<button type="button" class="action-link" data-account-activate="${escapeHtml(row.id)}">Activar</button>`}
-        </div>
+        </div>` : '<span class="muted-text">Solo consulta</span>'}
       </td>
     </tr>
   `).join('');
@@ -112,12 +118,13 @@ function renderTransactionTable(rows = []) {
 }
 
 async function fetchJson(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = window.NovaAuth ? await window.NovaAuth.getToken() : null;
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   let response;
   try {
-    response = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
-    });
+    response = await fetch(url, { ...options, headers });
   } catch (error) {
     const networkError = new Error('No hay conexión con el servidor. Revisa tu conexión e inténtalo de nuevo.');
     networkError.networkError = true;
@@ -130,6 +137,14 @@ async function fetchJson(url, options = {}) {
     data = text ? JSON.parse(text) : {};
   } catch (error) {
     data = { error: 'Respuesta inválida del servidor.' };
+  }
+
+  // Sesión vencida, cerrada o sin acceso: se vuelve a la pantalla de inicio de sesión.
+  if (response.status === 401 || (response.status === 403 && data.code === 'SIN_ACCESO')) {
+    if (window.NovaAuth) window.NovaAuth.handleUnauthorized(data);
+    const sessionError = new Error(data.error || 'Debes iniciar sesión.');
+    sessionError.sessionError = true;
+    throw sessionError;
   }
 
   if (!response.ok) {
@@ -1003,9 +1018,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+});
+
+// La llama auth.js cuando inicia sesión un administrador o un cajero.
+function startStaffApp() {
   loadCustomers();
   loadAccounts();
   loadTransactions();
-  loadCustomerSelects();
-  loadAccountSelects();
-});
+}

@@ -2,9 +2,11 @@
 
 // Error de negocio: su mensaje sí se muestra al usuario.
 class AppError extends Error {
-  constructor(status, message) {
+  // code (opcional): identificador para que el frontend reaccione, por ejemplo SESION_EXPIRADA.
+  constructor(status, message, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -30,7 +32,7 @@ function isUniqueViolation(error) {
 // eslint-disable-next-line no-unused-vars
 function errorHandler(error, req, res, next) {
   if (error instanceof AppError) {
-    res.status(error.status).json({ error: error.message });
+    res.status(error.status).json(error.code ? { error: error.message, code: error.code } : { error: error.message });
     return;
   }
   const businessStatus = databaseBusinessStatus(error);

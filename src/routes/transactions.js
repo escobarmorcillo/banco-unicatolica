@@ -48,8 +48,8 @@ function createTransactionsRouter(database) {
       if (!amount) throw new AppError(400, operation.invalidAmountMessage);
       if (!isUuid(idempotencyKey)) throw new AppError(400, 'Falta el identificador único de la operación.');
 
-      // El operador se asignará desde la sesión en la Fase 3.
-      const operatorId = null;
+      // El operador es siempre el usuario de la sesión, nunca un dato del navegador.
+      const operatorId = req.user.id;
       const transaction = await queryOne(
         database,
         `SELECT * FROM ${operation.sqlFunction}($1, $2, $3, $4, $5)`,

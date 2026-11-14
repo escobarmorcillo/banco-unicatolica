@@ -15,6 +15,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   min-height: 100%;
@@ -106,10 +108,116 @@ button { cursor: pointer; }
 }
 
 .sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: auto 6px 3px;
   padding: 12px 0 0;
+  border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.session-user {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-user strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-user span {
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+
+.logout-btn {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.logout-btn:hover { color: var(--danger); text-decoration: underline; }
+
+/* ---------- Inicio de sesión ---------- */
+
+.login-screen,
+.loading-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.loading-screen { color: var(--muted); }
+
+.login-card {
+  width: min(100%, 410px);
+  padding: 30px 28px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.login-card .brand-box { margin: 0 0 22px; }
+
+.login-card h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.login-notice { margin: 16px 0 0; }
+
+.login-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.login-form button { width: 100%; }
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* ---------- Vista del cliente ---------- */
+
+.panel-title {
+  margin: 0 0 14px;
+  font-size: 1.02rem;
+}
+
+.detail-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px 18px;
+  margin: 0;
+}
+
+.detail-list div { min-width: 0; }
+
+.detail-list dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.detail-list dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .content {
@@ -402,6 +510,11 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .action-link:hover { text-decoration: underline; }
 
+.muted-text {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .balance-summary {
   display: flex;
   flex-wrap: wrap;
@@ -494,7 +607,14 @@ tbody tr:last-child td { border-bottom: 0; }
   .brand-box { margin: 0 4px 13px; }
   .nav-menu { flex-direction: row; flex-wrap: wrap; }
   .nav-item { padding-right: 15px; padding-left: 27px; }
-  .sidebar-footer { display: none; }
+  .sidebar-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin: 12px 4px 0;
+    padding-top: 10px;
+  }
+  .logout-btn { align-self: center; }
   .content { width: 100%; padding: 25px 24px 38px; }
 }
 
