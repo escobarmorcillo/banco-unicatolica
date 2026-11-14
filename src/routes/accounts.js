@@ -2,6 +2,9 @@ const express = require('express');
 const { queryOne } = require('../database');
 const { ACCOUNT_TYPES, ACCOUNT_STATES, parseValidMoney, parseId } = require('../validation');
 const { AppError, asyncHandler } = require('../errors');
+const { ROLES, requireRole } = require('../auth/middleware');
+
+const onlyAdmin = requireRole(ROLES.ADMIN);
 
 const ACCOUNT_WITH_OWNER_SQL = `
   SELECT a.*, c.documento, c.nombres, c.apellidos
@@ -61,7 +64,7 @@ function createAccountsRouter(database) {
     res.json(rows.map((row) => ({ ...row, cliente: `${row.nombres} ${row.apellidos}` })));
   }));
 
-  router.post('/', asyncHandler(async (req, res) => {
+  router.post('/', onlyAdmin, asyncHandler(async (req, res) => {
     const body = req.body || {};
     const clienteId = parseId(body.cliente_id);
     const numeroCuenta = String(body.numero_cuenta || '').trim();
@@ -94,9 +97,9 @@ function createAccountsRouter(database) {
 
       if (cents > 0) {
         await tx.query(`
-          INSERT INTO public.transacciones (cuenta_id, tipo_transaccion, monto, saldo_anterior, saldo_resultante, descripcion)
-          VALUES ($1, 'deposito', $2, 0, $2, 'Saldo inicial registrado')
-        `, [created.id, cents]);
+          INSERT INTO public.transacciones (cuenta_id, tipo_transaccion, monto, saldo_anterior, saldo_resultante, descripcion, operador_id)
+          VALUES ($1, 'deposito', $2, 0, $2, 'Saldo inicial registrado', $3)
+        `, [created.id, cents, req.user.id]);
       }
       return getAccountWithOwner(created.id, tx);
     });
@@ -104,7 +107,7 @@ function createAccountsRouter(database) {
     res.status(201).json({ account, message: 'Cuenta creada y saldo inicial registrado en el historial.' });
   }));
 
-  router.put('/:id', asyncHandler(async (req, res) => {
+  router.put('/:id', onlyAdmin, asyncHandler(async (req, res) => {
     const account = await getAccountOr404(req.params.id);
 
     const body = req.body || {};
@@ -121,7 +124,7 @@ function createAccountsRouter(database) {
     res.json({ account: updated, message: 'Cuenta actualizada correctamente.' });
   }));
 
-  router.post('/:id/inactivate', asyncHandler(async (req, res) => {
+  router.post('/:id/inactivate', onlyAdmin, asyncHandler(async (req, res) => {
     const account = await getAccountOr404(req.params.id);
     if (account.saldo !== 0) throw new AppError(409, NON_ZERO_BALANCE_MESSAGE);
 
@@ -129,7 +132,7 @@ function createAccountsRouter(database) {
     res.json({ account: updated, message: 'Cuenta inactivada correctamente.' });
   }));
 
-  router.post('/:id/activate', asyncHandler(async (req, res) => {
+  router.post('/:id/activate', onlyAdmin, asyncHandler(async (req, res) => {
     const account = await getAccountOr404(req.params.id);
     if (account.estado === 'activo') throw new AppError(409, 'La cuenta ya está activa.');
     await assertOwnerIsActive(account);

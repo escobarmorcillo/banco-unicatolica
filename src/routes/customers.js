@@ -2,6 +2,9 @@ const express = require('express');
 const { queryOne } = require('../database');
 const { validateCustomer, parseId } = require('../validation');
 const { AppError, asyncHandler } = require('../errors');
+const { ROLES, requireRole } = require('../auth/middleware');
+
+const onlyAdmin = requireRole(ROLES.ADMIN);
 
 const CUSTOMER_FIELDS = ['tipo_documento', 'documento', 'nombres', 'apellidos', 'fecha_nacimiento', 'telefono', 'correo', 'direccion'];
 
@@ -36,7 +39,7 @@ function createCustomersRouter(database) {
     res.json(rows);
   }));
 
-  router.post('/', asyncHandler(async (req, res) => {
+  router.post('/', onlyAdmin, asyncHandler(async (req, res) => {
     const payload = readCustomerPayload(req.body || {});
 
     const missing = Object.values(payload).some((value) => !value || value.length < 2);
@@ -59,7 +62,7 @@ function createCustomersRouter(database) {
     res.status(201).json({ customer, message: 'Cliente registrado correctamente.' });
   }));
 
-  router.put('/:id', asyncHandler(async (req, res) => {
+  router.put('/:id', onlyAdmin, asyncHandler(async (req, res) => {
     const current = await getCustomerOr404(req.params.id);
     const payload = readCustomerPayload(req.body || {}, current);
 
@@ -79,7 +82,7 @@ function createCustomersRouter(database) {
     res.json({ customer, message: 'Cliente actualizado correctamente.' });
   }));
 
-  router.post('/:id/inactivate', asyncHandler(async (req, res) => {
+  router.post('/:id/inactivate', onlyAdmin, asyncHandler(async (req, res) => {
     const current = await getCustomerOr404(req.params.id);
 
     const activeAccount = await queryOne(database, "SELECT id FROM public.cuentas WHERE cliente_id = $1 AND estado = 'activo' LIMIT 1", [current.id]);
@@ -91,7 +94,7 @@ function createCustomersRouter(database) {
     res.json({ customer, message: 'Cliente inactivado correctamente.' });
   }));
 
-  router.post('/:id/activate', asyncHandler(async (req, res) => {
+  router.post('/:id/activate', onlyAdmin, asyncHandler(async (req, res) => {
     const current = await getCustomerOr404(req.params.id);
     if (current.estado === 'activo') throw new AppError(409, 'El cliente ya está activo.');
 

@@ -13,7 +13,14 @@ async function withDatabase(testFn) {
   }
 }
 
+async function createUser(db, rol, clienteId = null) {
+  const [user] = await db.query('INSERT INTO auth.users DEFAULT VALUES RETURNING id');
+  await db.query('INSERT INTO public.perfiles (id, rol, nombre_completo, cliente_id) VALUES ($1, $2, $3, $4)', [user.id, rol, `Usuario ${rol}`, clienteId]);
+  return user.id;
+}
+
 async function seed(db) {
+  const cajero = await createUser(db, 'cajero');
   const [cliente] = await db.query(`
     INSERT INTO public.clientes (tipo_documento, documento, nombres, apellidos, fecha_nacimiento, telefono, correo, direccion)
     VALUES ('Cedula', '100', 'Ana', 'Gomez', '1990-01-01', '3001112233', 'a@b.co', 'Calle 1') RETURNING id`);
@@ -22,15 +29,9 @@ async function seed(db) {
     VALUES ('Cedula', '200', 'Luis', 'Mora', '1990-01-01', '3001112233', 'l@b.co', 'Calle 2') RETURNING id`);
   const [cuenta] = await db.query("INSERT INTO public.cuentas (cliente_id, numero_cuenta, tipo_cuenta) VALUES ($1, '1', 'Ahorros') RETURNING id", [cliente.id]);
   const [cuentaOtro] = await db.query("INSERT INTO public.cuentas (cliente_id, numero_cuenta, tipo_cuenta) VALUES ($1, '2', 'Ahorros') RETURNING id", [otro.id]);
-  await db.query('SELECT public.realizar_deposito($1, 1000, null, null, $2)', [cuenta.id, randomUUID()]);
-  await db.query('SELECT public.realizar_deposito($1, 2000, null, null, $2)', [cuentaOtro.id, randomUUID()]);
-  return { cliente, otro, cuenta, cuentaOtro };
-}
-
-async function createUser(db, rol, clienteId = null) {
-  const [user] = await db.query('INSERT INTO auth.users DEFAULT VALUES RETURNING id');
-  await db.query('INSERT INTO public.perfiles (id, rol, nombre_completo, cliente_id) VALUES ($1, $2, $3, $4)', [user.id, rol, `Usuario ${rol}`, clienteId]);
-  return user.id;
+  await db.query('SELECT public.realizar_deposito($1, 1000, null, $2, $3)', [cuenta.id, cajero, randomUUID()]);
+  await db.query('SELECT public.realizar_deposito($1, 2000, null, $2, $3)', [cuentaOtro.id, cajero, randomUUID()]);
+  return { cliente, otro, cuenta, cuentaOtro, cajero };
 }
 
 async function asUser(db, userId, callback) {
@@ -60,23 +61,26 @@ test('base de datos: el historial de transacciones no se puede modificar ni borr
 
 test('base de datos: rechaza movimientos con saldos incoherentes', async () => {
   await withDatabase(async (db) => {
-    const { cuenta } = await seed(db);
+    const { cuenta, cajero } = await seed(db);
     await rejects(db.query(`
-      INSERT INTO public.transacciones (cuenta_id, tipo_transaccion, monto, saldo_anterior, saldo_resultante)
-      VALUES ($1, 'deposito', 100, 0, 999)`, [cuenta.id]), '23514');
+      INSERT INTO public.transacciones (cuenta_id, tipo_transaccion, monto, saldo_anterior, saldo_resultante, operador_id)
+      VALUES ($1, 'deposito', 100, 0, 999, $2)`, [cuenta.id, cajero]), '23514');
   });
 });
 
-test('base de datos: solo personal activo puede figurar como operador', async () => {
+test('base de datos: toda operación exige un operador del personal activo', async () => {
   await withDatabase(async (db) => {
-    const { cliente, cuenta } = await seed(db);
-    const cajero = await createUser(db, 'cajero');
+    const { cliente, cuenta, cajero } = await seed(db);
     const usuarioCliente = await createUser(db, 'cliente', cliente.id);
 
     const [ok] = await db.query('SELECT * FROM public.realizar_deposito($1, 500, null, $2, $3)', [cuenta.id, cajero, randomUUID()]);
     assert.equal(ok.operador_id, cajero);
 
     await rejects(db.query('SELECT public.realizar_deposito($1, 500, null, $2, $3)', [cuenta.id, usuarioCliente, randomUUID()]), 'NB403');
+    await rejects(db.query('SELECT public.realizar_deposito($1, 500, null, null, $2)', [cuenta.id, randomUUID()]), 'NB403');
+
+    await db.query('UPDATE public.perfiles SET activo = false WHERE id = $1', [cajero]);
+    await rejects(db.query('SELECT public.realizar_deposito($1, 500, null, $2, $3)', [cuenta.id, cajero, randomUUID()]), 'NB403');
   });
 });
 
@@ -111,14 +115,13 @@ test('RLS: un cliente solo ve sus propias cuentas y movimientos, y no puede escr
     assert.deepEqual(clientes.map((c) => c.id), [cliente.id]);
 
     await rejects(asUser(db, userId, (tx) => tx.query('UPDATE public.cuentas SET estado = $1', ['inactivo'])), '42501');
-    await rejects(asUser(db, userId, (tx) => tx.query('SELECT public.realizar_deposito($1, 1, null, null, $2)', [cuenta.id, randomUUID()])), '42501');
+    await rejects(asUser(db, userId, (tx) => tx.query('SELECT public.realizar_deposito($1, 1, null, $2, $3)', [cuenta.id, userId, randomUUID()])), '42501');
   });
 });
 
 test('RLS: el personal ve todas las cuentas', async () => {
   await withDatabase(async (db) => {
-    await seed(db);
-    const cajero = await createUser(db, 'cajero');
+    const { cajero } = await seed(db);
     const cuentas = await asUser(db, cajero, (tx) => tx.query('SELECT id FROM public.cuentas'));
     assert.equal(cuentas.length, 2);
   });

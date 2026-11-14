@@ -7,7 +7,36 @@
     <link rel="stylesheet" href="/styles/styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div class="login-screen" id="login-screen" hidden>
+      <div class="login-card">
+        <div class="brand-box">
+          <div class="brand-mark">N</div>
+          <div>
+            <h1>NovaBank</h1>
+          </div>
+        </div>
+        <h2>Iniciar sesión</h2>
+        <p class="page-description">Ingresa con el correo y la contraseña que te asignó el administrador.</p>
+        <p class="info-text login-notice" id="login-notice" hidden></p>
+        <form id="login-form" class="login-form" novalidate>
+          <label>
+            Correo electrónico
+            <input name="email" type="email" autocomplete="username" placeholder="correo@ejemplo.com" aria-describedby="login-email-error" required />
+            <small class="field-error" id="login-email-error" role="alert" hidden></small>
+          </label>
+          <label>
+            Contraseña
+            <input name="password" type="password" autocomplete="current-password" placeholder="Tu contraseña" aria-describedby="login-password-error" required />
+            <small class="field-error" id="login-password-error" role="alert" hidden></small>
+          </label>
+          <button type="submit" class="primary" id="login-submit-btn">Ingresar</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="loading-screen" id="loading-screen">Cargando NovaBank…</div>
+
+    <div class="app-shell" id="app-shell" hidden>
       <aside class="sidebar">
         <div class="brand-box">
           <div class="brand-mark">N</div>
@@ -17,15 +46,23 @@
         </div>
 
         <nav class="nav-menu" aria-label="Módulos principales">
-          <button class="nav-item active" data-view="clients">Clientes</button>
-          <button class="nav-item" data-view="accounts">Cuentas</button>
-          <button class="nav-item" data-view="transactions">Transacciones</button>
+          <button class="nav-item" data-view="clients" data-roles="administrador cajero">Clientes</button>
+          <button class="nav-item" data-view="accounts" data-roles="administrador cajero">Cuentas</button>
+          <button class="nav-item" data-view="transactions" data-roles="administrador cajero">Transacciones</button>
+          <button class="nav-item" data-view="users" data-roles="administrador">Usuarios</button>
+          <button class="nav-item" data-view="my-accounts" data-roles="cliente">Mis cuentas</button>
         </nav>
-        <div class="sidebar-footer">Cerrar sesión</div>
+        <div class="sidebar-footer">
+          <div class="session-user">
+            <strong id="session-user-name"></strong>
+            <span id="session-user-role"></span>
+          </div>
+          <button type="button" class="logout-btn" id="logout-btn">Cerrar sesión</button>
+        </div>
       </aside>
 
       <main class="content">
-        <section class="view active" id="clients">
+        <section class="view" id="clients">
           <div class="panel-header">
             <div>
               <h2>Clientes</h2>
@@ -34,10 +71,10 @@
           </div>
 
           <div class="subnav">
-            <button class="subnav-btn active" data-submodule="register" data-group="clients">Registrar</button>
+            <button class="subnav-btn" data-submodule="register" data-group="clients" data-roles="administrador">Registrar</button>
             <button class="subnav-btn" data-submodule="list" data-group="clients">Consultar y listar</button>
-            <button class="subnav-btn" data-submodule="update" data-group="clients">Actualizar</button>
-            <button class="subnav-btn" data-submodule="inactive" data-group="clients">Inactivar</button>
+            <button class="subnav-btn" data-submodule="update" data-group="clients" data-roles="administrador">Actualizar</button>
+            <button class="subnav-btn" data-submodule="inactive" data-group="clients" data-roles="administrador">Inactivar</button>
           </div>
 
           <div class="tab-panel active" data-submodule-panel="register" data-group="clients" data-description="Los campos con * son obligatorios.">
@@ -206,10 +243,10 @@
           </div>
 
           <div class="subnav">
-            <button class="subnav-btn active" data-submodule="register" data-group="accounts">Crear</button>
+            <button class="subnav-btn" data-submodule="register" data-group="accounts" data-roles="administrador">Crear</button>
             <button class="subnav-btn" data-submodule="list" data-group="accounts">Consultar</button>
-            <button class="subnav-btn" data-submodule="update" data-group="accounts">Actualizar</button>
-            <button class="subnav-btn" data-submodule="inactive" data-group="accounts">Inactivar</button>
+            <button class="subnav-btn" data-submodule="update" data-group="accounts" data-roles="administrador">Actualizar</button>
+            <button class="subnav-btn" data-submodule="inactive" data-group="accounts" data-roles="administrador">Inactivar</button>
           </div>
 
           <div class="tab-panel active" data-submodule-panel="register" data-group="accounts" data-description="La cuenta debe estar vinculada a un cliente existente.">
@@ -462,6 +499,126 @@
             </div>
           </div>
         </section>
+        <section class="view" id="users">
+          <div class="panel-header">
+            <div>
+              <h2>Usuarios</h2>
+              <p class="page-description" data-page-description="users">Crea los usuarios que pueden ingresar a NovaBank.</p>
+            </div>
+          </div>
+
+          <div class="subnav">
+            <button class="subnav-btn" data-submodule="create" data-group="users">Crear</button>
+            <button class="subnav-btn" data-submodule="list" data-group="users">Consultar</button>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="create" data-group="users" data-description="Crea los usuarios que pueden ingresar a NovaBank.">
+            <div class="panel">
+              <form id="user-form" class="form-grid" novalidate>
+                <label>
+                  Rol <span class="required">*</span>
+                  <select name="rol" id="user-role-select" required>
+                    <option value="cajero">Cajero</option>
+                    <option value="administrador">Administrador</option>
+                    <option value="cliente">Cliente</option>
+                  </select>
+                </label>
+                <label>
+                  Correo electrónico <span class="required">*</span>
+                  <input name="email" type="email" placeholder="correo@ejemplo.com" autocomplete="off" required />
+                </label>
+                <label id="user-name-field">
+                  Nombre completo <span class="required">*</span>
+                  <input name="nombre_completo" type="text" placeholder="Nombre y apellidos" autocomplete="off" />
+                </label>
+                <label id="user-customer-field" hidden>
+                  Documento del cliente <span class="required">*</span>
+                  <input name="documento_cliente" type="text" placeholder="Documento de un cliente registrado" inputmode="numeric" maxlength="10" data-customer-digits autocomplete="off" />
+                </label>
+                <label>
+                  Contraseña inicial <span class="required">*</span>
+                  <input name="password" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8" required />
+                </label>
+                <p class="info-text full-width">Entrega la contraseña inicial a la persona por un medio seguro. El cliente debe estar registrado antes de crear su usuario.</p>
+                <div class="actions full-width">
+                  <button type="reset" class="secondary">Cancelar</button>
+                  <button type="submit" class="primary">Crear usuario</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-submodule-panel="list" data-group="users" data-description="Usuarios con acceso a NovaBank.">
+            <div class="panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Correo</th>
+                      <th>Nombre</th>
+                      <th>Rol</th>
+                      <th>Documento cliente</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="user-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="my-accounts">
+          <div class="panel-header">
+            <div>
+              <h2>Mis cuentas</h2>
+              <p class="page-description">Consulta tus cuentas, saldos y movimientos.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">Mis datos</h3>
+            <dl class="detail-list" id="my-customer-details"></dl>
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">Cuentas</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Número</th>
+                    <th>Tipo</th>
+                    <th>Saldo</th>
+                    <th>Estado</th>
+                    <th>Movimientos</th>
+                  </tr>
+                </thead>
+                <tbody id="my-accounts-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" id="my-movements-panel" hidden>
+            <h3 class="panel-title">Movimientos de la cuenta <span id="my-movements-account"></span></h3>
+            <p class="history-balance">Saldo actual <strong id="my-movements-balance">—</strong></p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha y hora</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                    <th>Saldo resultante</th>
+                  </tr>
+                </thead>
+                <tbody id="my-movements-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -469,6 +626,10 @@
     <datalist id="account-options"></datalist>
     <div id="message-box" class="message-box hidden" aria-live="polite"></div>
 
+    <script src="/vendor/supabase.js"></script>
     <script src="/scripts/app.js"></script>
+    <script src="/scripts/users.js"></script>
+    <script src="/scripts/client-portal.js"></script>
+    <script src="/scripts/auth.js"></script>
   </body>
 </html>
