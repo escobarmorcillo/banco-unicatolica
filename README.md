@@ -93,10 +93,14 @@ Las pruebas usan [PGlite](https://pglite.dev/), un PostgreSQL real en memoria co
 
 ## Versión publicada
 
-NovaBank se despliega en [Render](https://render.com) con la configuración de [`render.yaml`](./render.yaml). En el servicio de Render hay que configurar:
+NovaBank se despliega en [Render](https://render.com) con la configuración de [`render.yaml`](./render.yaml). Cada cambio que llega a `main` se publica automáticamente.
 
-- **Environment → Secret Files**: subir el certificado con el nombre `supabase-ca.crt`.
-- **Environment Variables**: `SUPABASE_DB_URL`, `SUPABASE_DB_CA_CERT=/etc/secrets/supabase-ca.crt`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY`.
+En el servicio de Render (**Environment**) hay que configurar:
+
+- **Secret Files**: el certificado CA de Supabase con el nombre `supabase-ca.crt` (Render lo guarda en `/etc/secrets/supabase-ca.crt`).
+- **Environment Variables**: `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY`, con los mismos valores del `.env`. `SUPABASE_DB_CA_CERT` y `NODE_VERSION` ya vienen definidas en `render.yaml`.
+
+Para comprobar el despliegue, abre `https://<tu-servicio>.onrender.com/api/health`: debe responder `{"ok":true,...}`. En el plan gratuito el servicio se suspende tras 15 minutos sin visitas y la primera carga después tarda cerca de un minuto. Los datos no se pierden porque están en Supabase.
 
 ## Estructura
 
