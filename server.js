@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 const { createApp } = require('./src/app');
-const { createDb, createSupabaseDb } = require('./src/database');
+const { createSupabaseDb } = require('./src/database');
 
 if (require.main === module) {
   const app = createApp();
@@ -12,4 +12,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApp, createDb, createSupabaseDb };
+module.exports = { createApp, createSupabaseDb };

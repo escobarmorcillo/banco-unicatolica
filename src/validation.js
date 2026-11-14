@@ -2,6 +2,7 @@
 
 const ACCOUNT_TYPES = ['Ahorros', 'Corriente', 'Nomina'];
 const ACCOUNT_STATES = ['activo', 'inactivo'];
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isAtLeastFifteen(dateString) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
@@ -48,8 +49,14 @@ function parseValidMoney(value, allowZero = false) {
   return Number.isSafeInteger(cents) ? { amount, cents } : null;
 }
 
-function dateNow() {
-  return new Date().toISOString();
+// Identificador numérico de la URL (/api/customers/:id). Devuelve null si no es válido.
+function parseId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null;
+}
+
+function isUuid(value) {
+  return typeof value === 'string' && UUID_PATTERN.test(value);
 }
 
 module.exports = {
@@ -58,5 +65,6 @@ module.exports = {
   isAtLeastFifteen,
   validateCustomer,
   parseValidMoney,
-  dateNow,
+  parseId,
+  isUuid,
 };
