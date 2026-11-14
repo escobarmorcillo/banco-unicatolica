@@ -1,6 +1,6 @@
 const express = require('express');
-const { promisifyAll, promisifyGet, promisifyRun } = require('../database');
-const { validateCustomer, dateNow } = require('../validation');
+const { queryOne } = require('../database');
+const { validateCustomer, parseId } = require('../validation');
 const { AppError, asyncHandler } = require('../errors');
 
 const CUSTOMER_FIELDS = ['tipo_documento', 'documento', 'nombres', 'apellidos', 'fecha_nacimiento', 'telefono', 'correo', 'direccion'];
@@ -9,7 +9,7 @@ const CUSTOMER_FIELDS = ['tipo_documento', 'documento', 'nombres', 'apellidos', 
 function readCustomerPayload(body, current = {}) {
   const payload = {};
   for (const field of CUSTOMER_FIELDS) {
-    payload[field] = (body[field] || current[field] || '').trim();
+    payload[field] = String(body[field] || current[field] || '').trim();
   }
   return payload;
 }
@@ -17,19 +17,23 @@ function readCustomerPayload(body, current = {}) {
 function createCustomersRouter(database) {
   const router = express.Router();
 
-  async function getCustomerOr404(customerId) {
-    const customer = await promisifyGet(database, 'SELECT * FROM clientes WHERE id = ?', [customerId]);
+  async function getCustomerOr404(rawId) {
+    const id = parseId(rawId);
+    const customer = id && await queryOne(database, 'SELECT * FROM public.clientes WHERE id = $1', [id]);
     if (!customer) throw new AppError(404, 'Cliente no encontrado.');
     return customer;
   }
 
+  async function setCustomerState(id, estado) {
+    return queryOne(database, 'UPDATE public.clientes SET estado = $1 WHERE id = $2 RETURNING *', [estado, id]);
+  }
+
   router.get('/', asyncHandler(async (req, res) => {
-    const doc = (req.query.document || '').trim();
-    const sql = doc
-      ? 'SELECT * FROM clientes WHERE documento = ? ORDER BY id DESC'
-      : 'SELECT * FROM clientes ORDER BY id DESC';
-    const rows = await promisifyAll(database, sql, doc ? [doc] : []);
-    res.json(rows.map((row) => ({ ...row, estado: row.estado || 'activo' })));
+    const doc = String(req.query.document || '').trim();
+    const rows = doc
+      ? await database.query('SELECT * FROM public.clientes WHERE documento = $1 ORDER BY id DESC', [doc])
+      : await database.query('SELECT * FROM public.clientes ORDER BY id DESC');
+    res.json(rows);
   }));
 
   router.post('/', asyncHandler(async (req, res) => {
@@ -43,61 +47,56 @@ function createCustomersRouter(database) {
     const validationError = validateCustomer(payload);
     if (validationError) throw new AppError(400, validationError);
 
-    const existingDoc = await promisifyGet(database, 'SELECT id FROM clientes WHERE documento = ?', [payload.documento]);
+    const existingDoc = await queryOne(database, 'SELECT id FROM public.clientes WHERE documento = $1', [payload.documento]);
     if (existingDoc) throw new AppError(409, 'El documento ya existe en el sistema.');
 
-    const result = await promisifyRun(database, `
-      INSERT INTO clientes (tipo_documento, documento, nombres, apellidos, fecha_nacimiento, telefono, correo, direccion, estado, fecha_creacion, fecha_actualizacion)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?, ?)
-    `, [payload.tipo_documento, payload.documento, payload.nombres, payload.apellidos, payload.fecha_nacimiento, payload.telefono, payload.correo, payload.direccion, dateNow(), dateNow()]);
+    const customer = await queryOne(database, `
+      INSERT INTO public.clientes (tipo_documento, documento, nombres, apellidos, fecha_nacimiento, telefono, correo, direccion)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, CUSTOMER_FIELDS.map((field) => payload[field]));
 
-    const customer = await promisifyGet(database, 'SELECT * FROM clientes WHERE id = ?', [result.id]);
     res.status(201).json({ customer, message: 'Cliente registrado correctamente.' });
   }));
 
   router.put('/:id', asyncHandler(async (req, res) => {
-    const customerId = Number(req.params.id);
-    const row = await getCustomerOr404(customerId);
-    const payload = readCustomerPayload(req.body || {}, row);
+    const current = await getCustomerOr404(req.params.id);
+    const payload = readCustomerPayload(req.body || {}, current);
 
     const validationError = validateCustomer(payload);
     if (validationError) throw new AppError(400, validationError);
 
-    const duplicate = await promisifyGet(database, 'SELECT id FROM clientes WHERE documento = ? AND id != ?', [payload.documento, customerId]);
+    const duplicate = await queryOne(database, 'SELECT id FROM public.clientes WHERE documento = $1 AND id <> $2', [payload.documento, current.id]);
     if (duplicate) throw new AppError(409, 'El documento ya existe para otro cliente.');
 
-    await promisifyRun(database, `
-      UPDATE clientes
-      SET tipo_documento = ?, documento = ?, nombres = ?, apellidos = ?, fecha_nacimiento = ?, telefono = ?, correo = ?, direccion = ?, fecha_actualizacion = ?
-      WHERE id = ?
-    `, [payload.tipo_documento, payload.documento, payload.nombres, payload.apellidos, payload.fecha_nacimiento, payload.telefono, payload.correo, payload.direccion, dateNow(), customerId]);
+    const customer = await queryOne(database, `
+      UPDATE public.clientes
+      SET tipo_documento = $1, documento = $2, nombres = $3, apellidos = $4, fecha_nacimiento = $5, telefono = $6, correo = $7, direccion = $8
+      WHERE id = $9
+      RETURNING *
+    `, [...CUSTOMER_FIELDS.map((field) => payload[field]), current.id]);
 
-    const updated = await promisifyGet(database, 'SELECT * FROM clientes WHERE id = ?', [customerId]);
-    res.json({ customer: updated, message: 'Cliente actualizado correctamente.' });
+    res.json({ customer, message: 'Cliente actualizado correctamente.' });
   }));
 
   router.post('/:id/inactivate', asyncHandler(async (req, res) => {
-    const customerId = Number(req.params.id);
-    await getCustomerOr404(customerId);
+    const current = await getCustomerOr404(req.params.id);
 
-    const activeAccounts = await promisifyAll(database, 'SELECT id FROM cuentas WHERE cliente_id = ? AND estado = ?', [customerId, 'activo']);
-    if (activeAccounts.length > 0) {
+    const activeAccount = await queryOne(database, "SELECT id FROM public.cuentas WHERE cliente_id = $1 AND estado = 'activo' LIMIT 1", [current.id]);
+    if (activeAccount) {
       throw new AppError(409, 'No se puede inactivar el cliente porque tiene cuentas activas asociadas.');
     }
 
-    await promisifyRun(database, 'UPDATE clientes SET estado = ?, fecha_actualizacion = ? WHERE id = ?', ['inactivo', dateNow(), customerId]);
-    const updated = await promisifyGet(database, 'SELECT * FROM clientes WHERE id = ?', [customerId]);
-    res.json({ customer: updated, message: 'Cliente inactivado correctamente.' });
+    const customer = await setCustomerState(current.id, 'inactivo');
+    res.json({ customer, message: 'Cliente inactivado correctamente.' });
   }));
 
   router.post('/:id/activate', asyncHandler(async (req, res) => {
-    const customerId = Number(req.params.id);
-    const customer = await getCustomerOr404(customerId);
-    if (customer.estado === 'activo') throw new AppError(409, 'El cliente ya está activo.');
+    const current = await getCustomerOr404(req.params.id);
+    if (current.estado === 'activo') throw new AppError(409, 'El cliente ya está activo.');
 
-    await promisifyRun(database, 'UPDATE clientes SET estado = ?, fecha_actualizacion = ? WHERE id = ?', ['activo', dateNow(), customerId]);
-    const updated = await promisifyGet(database, 'SELECT * FROM clientes WHERE id = ?', [customerId]);
-    res.json({ customer: updated, message: 'Cliente activado correctamente.' });
+    const customer = await setCustomerState(current.id, 'activo');
+    res.json({ customer, message: 'Cliente activado correctamente.' });
   }));
 
   return router;

@@ -17,14 +17,25 @@ function apiNotFound(req, res) {
   res.status(404).json({ error: 'Recurso no encontrado.' });
 }
 
+// Errores de negocio lanzados por las funciones SQL (códigos NB400, NB403, NB404, NB409).
+function databaseBusinessStatus(error) {
+  const match = /^NB(400|403|404|409)$/.exec(error.code || '');
+  return match ? Number(match[1]) : null;
+}
+
 function isUniqueViolation(error) {
-  return error.code === '23505' || /UNIQUE constraint failed/i.test(error.message || '');
+  return error.code === '23505';
 }
 
 // eslint-disable-next-line no-unused-vars
 function errorHandler(error, req, res, next) {
   if (error instanceof AppError) {
     res.status(error.status).json({ error: error.message });
+    return;
+  }
+  const businessStatus = databaseBusinessStatus(error);
+  if (businessStatus) {
+    res.status(businessStatus).json({ error: error.message });
     return;
   }
   if (error.type === 'entity.parse.failed') {

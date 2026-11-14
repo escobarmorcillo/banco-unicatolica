@@ -112,10 +112,17 @@ function renderTransactionTable(rows = []) {
 }
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+  } catch (error) {
+    const networkError = new Error('No hay conexión con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+    networkError.networkError = true;
+    throw networkError;
+  }
   const text = await response.text();
   let data = {};
 
@@ -675,19 +682,32 @@ async function handleTransactionSubmit(event) {
   const data = Object.fromEntries(new FormData(form).entries());
   data.amount = amount;
   const type = event.submitter && event.submitter.dataset.transaction;
+  const submitButton = event.submitter;
+
+  // Cada operación lleva un identificador único. Si la conexión falla y se
+  // reintenta, el servidor reconoce el mismo identificador y no la duplica.
+  if (!form.dataset.idempotencyKey) form.dataset.idempotencyKey = crypto.randomUUID();
+  data.idempotency_key = form.dataset.idempotencyKey;
+  if (submitButton) submitButton.disabled = true;
 
   try {
     const result = await fetchJson(type === 'withdraw' ? '/api/transactions/withdraw' : '/api/transactions/deposit', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    delete form.dataset.idempotencyKey;
     showMessage(result.message || 'Operación registrada', 'success');
     form.reset();
     updateTransactionPreview(type === 'withdraw' ? 'withdraw' : 'deposit');
     loadAccounts();
     loadTransactions();
   } catch (error) {
+    // Si el servidor respondió (por ejemplo, saldo insuficiente), la próxima
+    // operación es nueva. Si no hubo respuesta, se conserva para el reintento.
+    if (!error.networkError) delete form.dataset.idempotencyKey;
     showMessage(error.message, 'error');
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
 }
 
@@ -891,6 +911,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   accountForm.addEventListener('submit', handleAccountSubmit);
   transactionForm.addEventListener('submit', handleTransactionSubmit);
   transactionWithdrawForm.addEventListener('submit', handleTransactionSubmit);
+  // Si el usuario cambia los datos, ya no es un reintento sino una operación nueva.
+  [transactionForm, transactionWithdrawForm].forEach((form) => {
+    form.addEventListener('input', () => { delete form.dataset.idempotencyKey; });
+  });
 
   document.getElementById('customer-search-btn').addEventListener('click', () => {
     const value = document.getElementById('customer-search-input').value.trim();
