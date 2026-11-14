@@ -94,28 +94,27 @@ test('permisos: el cliente solo ve sus propios datos', async () => {
   await withApp(async (baseUrl, db, { auth }) => {
     const ana = await createCustomer(baseUrl, { documento: '100' });
     const luis = await createCustomer(baseUrl, { documento: '200', nombres: 'Luis' });
-    await createAccount(baseUrl, ana.id, { numero_cuenta: '1001', saldo_inicial: 10 });
-    await createAccount(baseUrl, luis.id, { numero_cuenta: '2001', saldo_inicial: 20 });
+    const anaAccount = await createAccount(baseUrl, ana.id, { saldo_inicial: 10 });
+    const luisAccount = await createAccount(baseUrl, luis.id, { saldo_inicial: 20 });
     const token = await auth.sign(await createUser(db, { rol: 'cliente', clienteId: ana.id }));
 
     const accounts = await api(baseUrl, '/api/me/accounts', { token });
-    assert.deepEqual(accounts.data.map((a) => a.numero_cuenta), ['1001']);
+    assert.deepEqual(accounts.data.map((a) => a.numero_cuenta), [anaAccount.numero_cuenta]);
 
     const customer = await api(baseUrl, '/api/me/customer', { token });
     assert.equal(customer.data.documento, '100');
 
-    const own = await api(baseUrl, '/api/me/transactions?accountNumber=1001', { token });
+    const own = await api(baseUrl, `/api/me/transactions?accountNumber=${anaAccount.numero_cuenta}`, { token });
     assert.equal(own.status, 200);
     assert.equal(own.data.movements.length, 1);
 
-    const other = await api(baseUrl, '/api/me/transactions?accountNumber=2001', { token });
+    const other = await api(baseUrl, `/api/me/transactions?accountNumber=${luisAccount.numero_cuenta}`, { token });
     assert.equal(other.status, 404, 'no puede ver la cuenta de otro cliente');
 
     for (const path of ['/api/customers', '/api/accounts', '/api/transactions', '/api/users']) {
       assert.equal((await api(baseUrl, path, { token })).status, 403, path);
     }
-    const account2001 = (await api(baseUrl, '/api/accounts?number=2001')).data[0];
-    assert.equal((await operate(baseUrl, 'withdraw', account2001.id, 1, { token })).status, 403);
+    assert.equal((await operate(baseUrl, 'withdraw', luisAccount.id, 1, { token })).status, 403);
   });
 });
 

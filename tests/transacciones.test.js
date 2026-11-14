@@ -4,7 +4,7 @@ const { withApp, api, createCustomer, createAccount, operate, randomUUID } = req
 
 async function setupAccount(baseUrl, saldoInicial = 1000) {
   const customer = await createCustomer(baseUrl, { documento: '22222222' });
-  return createAccount(baseUrl, customer.id, { numero_cuenta: '2001', saldo_inicial: saldoInicial });
+  return createAccount(baseUrl, customer.id, { saldo_inicial: saldoInicial });
 }
 
 test('transacciones: depósito y retiro actualizan el saldo y el historial', async () => {
@@ -20,7 +20,7 @@ test('transacciones: depósito y retiro actualizan el saldo y el historial', asy
     assert.equal(withdraw.status, 200);
     assert.equal(withdraw.data.account.saldo, 95000);
 
-    const history = await api(baseUrl, '/api/transactions?accountNumber=2001');
+    const history = await api(baseUrl, `/api/transactions?accountNumber=${account.numero_cuenta}`);
     assert.equal(history.status, 200);
     assert.equal(history.data.length, 3);
   });
@@ -46,7 +46,7 @@ test('transacciones: rechaza retiro mayor al saldo, montos inválidos y cuentas 
     assert.equal(withoutKey.status, 400);
     assert.match(withoutKey.data.error, /identificador/i);
 
-    const accounts = await api(baseUrl, '/api/accounts?number=2001');
+    const accounts = await api(baseUrl, `/api/accounts?number=${account.numero_cuenta}`);
     assert.equal(accounts.data[0].saldo, 100000, 'los intentos fallidos no cambian el saldo');
   });
 });
@@ -66,7 +66,7 @@ test('transacciones: un reintento con el mismo identificador no duplica la opera
     const reusedWithOtherAmount = await operate(baseUrl, 'deposit', account.id, 70, { idempotency_key: key });
     assert.equal(reusedWithOtherAmount.status, 409);
 
-    const history = await api(baseUrl, '/api/transactions?accountNumber=2001');
+    const history = await api(baseUrl, `/api/transactions?accountNumber=${account.numero_cuenta}`);
     assert.equal(history.data.length, 2, 'saldo inicial + un solo depósito');
   });
 });
@@ -83,8 +83,8 @@ test('transacciones: operaciones simultáneas mantienen saldo y movimientos cohe
     const rejected = results.filter((r) => r.status !== 200);
     assert.ok(rejected.every((r) => r.status === 400 && /excede/.test(r.data.error)), 'solo se rechazan retiros sin saldo');
 
-    const history = (await api(baseUrl, '/api/transactions?accountNumber=2001')).data;
-    const accountNow = (await api(baseUrl, '/api/accounts?number=2001')).data[0];
+    const history = (await api(baseUrl, `/api/transactions?accountNumber=${account.numero_cuenta}`)).data;
+    const accountNow = (await api(baseUrl, `/api/accounts?number=${account.numero_cuenta}`)).data[0];
     const sum = history.reduce((total, t) => total + (t.tipo_transaccion === 'deposito' ? t.monto : -t.monto), 0);
     assert.equal(history.length, succeeded.length);
     assert.equal(accountNow.saldo, sum);

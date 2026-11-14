@@ -44,7 +44,7 @@ test('api: los datos persisten al reiniciar la aplicación', async () => {
     const first = await createTestDatabase({ dataDir });
     await withApp(async (baseUrl) => {
       const customer = await createCustomer(baseUrl, { documento: '44444444' });
-      await createAccount(baseUrl, customer.id, { numero_cuenta: '4001', saldo_inicial: 1500 });
+      await createAccount(baseUrl, customer.id, { saldo_inicial: 1500 });
     }, { database: first });
     await first.close();
 
@@ -53,7 +53,7 @@ test('api: los datos persisten al reiniciar la aplicación', async () => {
       const customers = await api(baseUrl, '/api/customers');
       const accounts = await api(baseUrl, '/api/accounts');
       assert.ok(customers.data.some((c) => c.documento === '44444444'));
-      assert.ok(accounts.data.some((a) => a.numero_cuenta === '4001' && a.saldo === 150000));
+      assert.ok(accounts.data.some((a) => a.numero_cuenta === '1000000001' && a.saldo === 150000));
     }, { database: second });
     await second.close();
   } finally {

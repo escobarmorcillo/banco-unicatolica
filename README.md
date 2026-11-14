@@ -70,8 +70,16 @@ Los scripts están en [`supabase/migrations/`](./supabase/migrations), un archiv
 | `20261113000600_operaciones.sql` | Funciones `realizar_deposito` y `realizar_retiro` |
 | `20261113000700_seguridad_rls.sql` | Permisos y políticas RLS |
 | `20261113000800_operador_obligatorio.sql` | Toda operación nueva debe registrar el usuario que la hizo |
+| `20261113000900_cuentas_apertura.sql` | Número de cuenta automático, apertura con `abrir_cuenta` y reglas de estado de cuentas |
+| `20261113001000_clientes_reglas.sql` | Mayoría de edad, tipos y formatos de documento e integridad cliente–cuentas |
 
 Los scripts no borran datos y pueden ejecutarse más de una vez.
+
+### Reglas de clientes y cuentas
+
+- **Clientes:** mayores de 18 años, con Cédula o Pasaporte (documento de 1 a 10 dígitos) y teléfono de 10 dígitos. Un cliente con cuentas activas no se puede inactivar, y un cliente inactivo no se puede editar hasta activarlo. Los clientes no se eliminan: se inactivan.
+- **Número de cuenta:** lo asigna el sistema. Tiene 10 dígitos: el prefijo del tipo (`10` Ahorros, `20` Corriente, `30` Nómina) y un consecutivo de 8 dígitos por tipo. Ejemplo: `1000000001`.
+- **Cuentas:** se abren con saldo cero y el saldo inicial queda registrado como un depósito. El número, el tipo y el titular no cambian después de la apertura. Una cuenta solo se inactiva con saldo cero y solo se reactiva si su cliente está activo.
 
 Los saldos y montos se guardan en centavos de COP. Cada depósito o retiro se hace dentro de una función de PostgreSQL que bloquea la cuenta, valida el saldo, actualiza el saldo y registra el movimiento en un solo paso atómico. Si se reintenta una operación con el mismo identificador (`idempotency_key`), no se duplica.
 

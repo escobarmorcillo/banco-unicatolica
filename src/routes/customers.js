@@ -64,6 +64,7 @@ function createCustomersRouter(database) {
 
   router.put('/:id', onlyAdmin, asyncHandler(async (req, res) => {
     const current = await getCustomerOr404(req.params.id);
+    if (current.estado !== 'activo') throw new AppError(409, 'No se puede actualizar un cliente inactivo. Actívalo primero.');
     const payload = readCustomerPayload(req.body || {}, current);
 
     const validationError = validateCustomer(payload);

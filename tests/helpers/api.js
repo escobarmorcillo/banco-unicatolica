@@ -75,7 +75,7 @@ async function createCustomer(baseUrl, overrides = {}) {
 async function createAccount(baseUrl, customerId, overrides = {}) {
   const response = await api(baseUrl, '/api/accounts', {
     method: 'POST',
-    body: { cliente_id: customerId, numero_cuenta: '1001', tipo_cuenta: 'Ahorros', saldo_inicial: 0, ...overrides },
+    body: { cliente_id: customerId, tipo_cuenta: 'Ahorros', saldo_inicial: 0, ...overrides },
   });
   if (response.status !== 201) throw new Error(`No se pudo crear la cuenta: ${response.data.error}`);
   return response.data.account;
