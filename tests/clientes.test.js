@@ -15,16 +15,16 @@ test('clientes: registra un cliente válido y rechaza el documento duplicado', a
   });
 });
 
-test('clientes: rechaza menores de 15 años y permite listar', async () => {
+test('clientes: rechaza menores de 18 años y permite listar', async () => {
   await withApp(async (baseUrl) => {
     const underageDate = new Date();
-    underageDate.setUTCFullYear(underageDate.getUTCFullYear() - 14);
+    underageDate.setUTCFullYear(underageDate.getUTCFullYear() - 17);
     const underage = await api(baseUrl, '/api/customers', {
       method: 'POST',
       body: validCustomer({ documento: '99999999', fecha_nacimiento: underageDate.toISOString().slice(0, 10) }),
     });
     assert.equal(underage.status, 400);
-    assert.match(underage.data.error, /15/i);
+    assert.match(underage.data.error, /18/i);
 
     const list = await api(baseUrl, '/api/customers');
     assert.equal(list.status, 200);
@@ -90,7 +90,7 @@ test('clientes: inactiva y reactiva; no inactiva con cuentas activas', async () 
     const alreadyActive = await api(baseUrl, `/api/customers/${id}/activate`, { method: 'POST' });
     assert.equal(alreadyActive.status, 409);
 
-    const account = await createAccount(baseUrl, id, { numero_cuenta: '4001' });
+    const account = await createAccount(baseUrl, id);
     const blocked = await api(baseUrl, `/api/customers/${id}/inactivate`, { method: 'POST' });
     assert.equal(blocked.status, 409);
     assert.match(blocked.data.error, /cuentas activas/i);
@@ -111,5 +111,30 @@ test('clientes: responde 404 para ids inexistentes o inválidos', async () => {
       const response = await api(baseUrl, `/api/customers/${id}/activate`, { method: 'POST' });
       assert.equal(response.status, 404);
     }
+  });
+});
+
+test('clientes: solo acepta Cédula o Pasaporte como tipo de documento', async () => {
+  await withApp(async (baseUrl) => {
+    const response = await api(baseUrl, '/api/customers', { method: 'POST', body: validCustomer({ tipo_documento: 'Tarjeta de identidad' }) });
+    assert.equal(response.status, 400);
+    assert.match(response.data.error, /Cédula o Pasaporte/);
+    assert.equal((await api(baseUrl, '/api/customers', { method: 'POST', body: validCustomer({ tipo_documento: 'Pasaporte' }) })).status, 201);
+  });
+});
+
+test('clientes: un cliente inactivo no se puede editar hasta activarlo', async () => {
+  await withApp(async (baseUrl) => {
+    const customer = await createCustomer(baseUrl);
+    await api(baseUrl, `/api/customers/${customer.id}/inactivate`, { method: 'POST' });
+
+    const blocked = await api(baseUrl, `/api/customers/${customer.id}`, { method: 'PUT', body: { telefono: '3109998877' } });
+    assert.equal(blocked.status, 409);
+    assert.match(blocked.data.error, /inactivo/i);
+
+    await api(baseUrl, `/api/customers/${customer.id}/activate`, { method: 'POST' });
+    const allowed = await api(baseUrl, `/api/customers/${customer.id}`, { method: 'PUT', body: { telefono: '3109998877' } });
+    assert.equal(allowed.status, 200);
+    assert.equal(allowed.data.customer.telefono, '3109998877');
   });
 });

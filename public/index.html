@@ -85,7 +85,6 @@
                   <select name="tipo_documento" required>
                     <option value="Cedula">Cédula</option>
                     <option value="Pasaporte">Pasaporte</option>
-                    <option value="Tarjeta de identidad">Tarjeta de identidad</option>
                   </select>
                 </label>
                 <label>
@@ -270,16 +269,11 @@
                   </select>
                 </label>
                 <label>
-                  Número de cuenta <span class="required">*</span>
-                  <input name="numero_cuenta" type="text" inputmode="numeric" placeholder="Solo números" data-customer-digits aria-describedby="account-number-error" required />
-                  <small class="field-error" id="account-number-error" role="alert" hidden></small>
-                </label>
-                <label>
                   Saldo inicial <span class="required">*</span>
                   <input name="saldo_inicial" type="text" inputmode="decimal" placeholder="Ej: 500 o 500.50" data-money min="0" required aria-describedby="account-opening-balance-error" />
                   <small class="field-error" id="account-opening-balance-error" role="alert" hidden></small>
                 </label>
-                <p class="info-text full-width">El número de cuenta es único y el saldo inicial no puede ser negativo.</p>
+                <p class="info-text full-width">El número de cuenta es único y lo asigna el sistema: 10 dígitos que empiezan por 10 (Ahorros), 20 (Corriente) o 30 (Nómina). El saldo inicial no puede ser negativo.</p>
                 <div class="actions full-width">
                   <button type="button" class="secondary" id="account-cancel-btn">Cancelar</button>
                   <button type="submit" class="primary">Crear cuenta</button>
@@ -339,13 +333,9 @@
                 </label>
                 <label>
                   Tipo de cuenta
-                  <select id="account-update-tipo">
-                    <option value="Ahorros">Ahorros</option>
-                    <option value="Corriente">Corriente</option>
-                    <option value="Nomina">Nómina</option>
-                  </select>
+                  <input id="account-update-tipo" type="text" readonly />
                 </label>
-                <p class="info-text full-width">El saldo no se modifica aquí; solo cambia con transacciones.</p>
+                <p class="info-text full-width">El saldo no se modifica aquí; solo cambia con transacciones. El número y el tipo de cuenta quedan fijos desde la apertura.</p>
                 <div class="actions full-width">
                   <button type="button" class="secondary" id="account-update-cancel-btn">Cancelar</button>
                   <button type="button" class="primary" id="account-update-save-btn">Guardar cambios</button>

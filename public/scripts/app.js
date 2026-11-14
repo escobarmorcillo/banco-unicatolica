@@ -365,7 +365,7 @@ async function lookupAccountForUpdate() {
     document.getElementById('account-update-cuenta').value = account.numero_cuenta;
     document.getElementById('account-update-saldo').value = formatCurrency(account.saldo);
     document.getElementById('account-update-estado').value = account.estado;
-    document.getElementById('account-update-tipo').value = account.tipo_cuenta;
+    document.getElementById('account-update-tipo').value = account.tipo_cuenta === 'Nomina' ? 'Nómina' : account.tipo_cuenta;
   } catch (error) {
     showMessage(error.message, 'error');
   }
@@ -462,7 +462,7 @@ function validateCustomerForm(form) {
     { name: 'documento', message: 'Ingresa un documento de máximo 10 números.', validate: (value) => /^\d{1,10}$/.test(value) },
     { name: 'nombres', message: 'Escribe los nombres usando solo letras y espacios.', validate: (value) => /^[\p{L}]+(?: +[\p{L}]+)*$/u.test(value) },
     { name: 'apellidos', message: 'Escribe los apellidos usando solo letras y espacios.', validate: (value) => /^[\p{L}]+(?: +[\p{L}]+)*$/u.test(value) },
-    { name: 'fecha_nacimiento', message: 'El cliente debe tener mínimo 15 años. Verifica la fecha de nacimiento.', validate: isAtLeastFifteen },
+    { name: 'fecha_nacimiento', message: 'El cliente debe ser mayor de 18 años. Verifica la fecha de nacimiento.', validate: isAdult },
     { name: 'telefono', message: 'Completa los 10 números del teléfono.', validate: (value) => /^\d{10}$/.test(value) },
     { name: 'correo', message: 'Escribe un correo válido, por ejemplo nombre@dominio.com.', validate: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) },
     { name: 'direccion', message: 'Completa la dirección del cliente.', validate: (value) => value.length >= 2 },
@@ -501,13 +501,15 @@ function validateCustomerFields(form, fields) {
   return true;
 }
 
-function isAtLeastFifteen(value) {
+const MINIMUM_AGE = 18;
+
+function isAdult(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split('-').map(Number);
   const birthDate = new Date(Date.UTC(year, month - 1, day));
   if (birthDate.getUTCFullYear() !== year || birthDate.getUTCMonth() !== month - 1 || birthDate.getUTCDate() !== day) return false;
   const today = new Date();
-  const cutoff = new Date(Date.UTC(today.getUTCFullYear() - 15, today.getUTCMonth(), today.getUTCDate()));
+  const cutoff = new Date(Date.UTC(today.getUTCFullYear() - MINIMUM_AGE, today.getUTCMonth(), today.getUTCDate()));
   return birthDate <= cutoff;
 }
 
@@ -522,7 +524,7 @@ function setupCustomerFieldValidation(form) {
   const birthDateInput = form.elements.namedItem('fecha_nacimiento');
   if (!birthDateInput) return;
   const today = new Date();
-  birthDateInput.max = `${today.getUTCFullYear() - 15}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
+  birthDateInput.max = `${today.getUTCFullYear() - MINIMUM_AGE}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
 }
 
 function setupRestrictedCustomerInput(input) {
@@ -621,20 +623,12 @@ async function handleAccountSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const customerSearch = document.getElementById('account-customer-search');
-  const accountNumber = form.elements.namedItem('numero_cuenta');
   const openingBalance = form.elements.namedItem('saldo_inicial');
   if (!document.getElementById('account-customer-id').value) {
     showMessage('Busca y selecciona un cliente titular antes de crear la cuenta.', 'error');
     customerSearch.focus();
     return;
   }
-  if (!/^\d+$/.test(accountNumber.value.trim())) {
-    setCustomerFieldError(accountNumber, 'El número de cuenta solo permite números.');
-    accountNumber.focus();
-    showMessage('¡Atención! Escribe únicamente números en el número de cuenta.', 'error');
-    return;
-  }
-  setCustomerFieldError(accountNumber);
   if (!isValidMoney(openingBalance.value.trim().replace(',', '.'), true)) {
     setCustomerFieldError(openingBalance, 'Ingresa un saldo válido con máximo dos decimales; no puede ser negativo.');
     openingBalance.focus();
@@ -644,23 +638,19 @@ async function handleAccountSubmit(event) {
   setCustomerFieldError(openingBalance);
   const data = Object.fromEntries(new FormData(form).entries());
   data.saldo_inicial = openingBalance.value.trim().replace(',', '.');
-  const isEditMode = form.dataset.mode === 'edit';
-  const id = form.dataset.accountId;
+  const submitButton = form.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
 
   try {
-    const result = isEditMode && id
-      ? await fetchJson(`/api/accounts/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ tipo_cuenta: data.tipo_cuenta, estado: data.estado || 'activo' }),
-        })
-      : await fetchJson('/api/accounts', { method: 'POST', body: JSON.stringify(data) });
-
-    showMessage(result.message || (isEditMode ? 'Cuenta actualizada' : 'Cuenta creada'), 'success');
+    // El número de cuenta lo asigna el sistema y llega en el mensaje de respuesta.
+    const result = await fetchJson('/api/accounts', { method: 'POST', body: JSON.stringify(data) });
+    showMessage(result.message || 'Cuenta creada', 'success');
     resetAccountForm();
     loadAccounts();
-    loadAccountSelects();
   } catch (error) {
-    showMessage(error.message, 'error');
+    if (!error.sessionError) showMessage(error.message, 'error');
+  } finally {
+    submitButton.disabled = false;
   }
 }
 
@@ -790,7 +780,6 @@ async function saveAccountUpdate() {
     const result = await fetchJson(`/api/accounts/${form.dataset.accountId}`, {
       method: 'PUT',
       body: JSON.stringify({
-        tipo_cuenta: document.getElementById('account-update-tipo').value,
         estado: document.getElementById('account-update-estado').value,
       }),
     });
@@ -875,7 +864,7 @@ document.addEventListener('click', async (event) => {
     document.querySelector('.subnav-btn[data-group="accounts"][data-submodule="update"]').click();
     document.getElementById('account-update-number').value = account.numero_cuenta;
     await lookupAccountForUpdate();
-    document.getElementById('account-update-tipo').focus();
+    document.getElementById('account-update-estado').focus();
     return;
   }
 
@@ -988,6 +977,16 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('customer-cancel-btn').addEventListener('click', () => {
     resetCustomerForm();
+  });
+
+  // Botones "Cancelar" de las pestañas Inactivar: limpian la búsqueda y el formulario.
+  [['customer-inactive-cancel-btn', 'customer-inactive-form', 'customerId'],
+    ['account-inactive-cancel-btn', 'account-inactive-form', 'accountId']].forEach(([buttonId, formId, key]) => {
+    document.getElementById(buttonId).addEventListener('click', () => {
+      const form = document.getElementById(formId);
+      delete form.dataset[key];
+      form.reset();
+    });
   });
 
   document.getElementById('account-cancel-btn').addEventListener('click', () => {

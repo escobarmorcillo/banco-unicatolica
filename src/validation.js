@@ -2,19 +2,24 @@
 
 const ACCOUNT_TYPES = ['Ahorros', 'Corriente', 'Nomina'];
 const ACCOUNT_STATES = ['activo', 'inactivo'];
+const DOCUMENT_TYPES = ['Cedula', 'Pasaporte'];
+const MINIMUM_AGE = 18;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function isAtLeastFifteen(dateString) {
+function isAdult(dateString) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
   const [year, month, day] = dateString.split('-').map(Number);
   const birthDate = new Date(Date.UTC(year, month - 1, day));
   if (birthDate.getUTCFullYear() !== year || birthDate.getUTCMonth() !== month - 1 || birthDate.getUTCDate() !== day) return false;
   const today = new Date();
-  const cutoff = new Date(Date.UTC(today.getUTCFullYear() - 15, today.getUTCMonth(), today.getUTCDate()));
+  const cutoff = new Date(Date.UTC(today.getUTCFullYear() - MINIMUM_AGE, today.getUTCMonth(), today.getUTCDate()));
   return birthDate <= cutoff;
 }
 
 function validateCustomer(payload) {
+  if (!DOCUMENT_TYPES.includes(payload.tipo_documento)) {
+    return 'El tipo de documento debe ser Cédula o Pasaporte.';
+  }
   if (!/^\d{1,10}$/.test(payload.documento)) {
     return 'El documento debe contener solo números y tener máximo 10 dígitos.';
   }
@@ -24,8 +29,8 @@ function validateCustomer(payload) {
   if (!/^[\p{L}]+(?: +[\p{L}]+)*$/u.test(payload.apellidos)) {
     return 'Los apellidos solo pueden contener letras y espacios.';
   }
-  if (!isAtLeastFifteen(payload.fecha_nacimiento)) {
-    return 'El cliente debe tener mínimo 15 años. Verifica la fecha de nacimiento.';
+  if (!isAdult(payload.fecha_nacimiento)) {
+    return 'El cliente debe ser mayor de 18 años. Verifica la fecha de nacimiento.';
   }
   if (!/^\d{10}$/.test(payload.telefono)) {
     return 'El teléfono debe contener exactamente 10 números.';
@@ -62,7 +67,8 @@ function isUuid(value) {
 module.exports = {
   ACCOUNT_TYPES,
   ACCOUNT_STATES,
-  isAtLeastFifteen,
+  DOCUMENT_TYPES,
+  isAdult,
   validateCustomer,
   parseValidMoney,
   parseId,
